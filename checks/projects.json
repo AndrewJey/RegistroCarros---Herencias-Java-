@@ -1,0 +1,9 @@
+[
+  {
+    "project": "build.xml",
+    "source": "checks/VehicleCheck.java",
+    "main": "VehicleCheck",
+    "headless": true,
+    "classpath": []
+  }
+]

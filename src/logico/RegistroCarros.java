@@ -96,6 +96,9 @@ public class RegistroCarros {
     // --------------------------------------
     // METODOS CLASE AUTOMOVIL
     public String AgregarAutomovil(String Marca, int Placa, String Estilo, String Transmision) {
+        if (Marca == null || Marca.trim().isEmpty() || Placa <= 0) return "Marca y placa positiva son obligatorias";
+        for (Object item : ListadoVehiculos) if (((ClsVehiculo) item).getPlaca() == Placa) return "Ya existe un vehículo con esa placa";
+
 
         String Resultado = "";
 
@@ -182,6 +185,9 @@ public class RegistroCarros {
 
     // METODOS CLASE MOTOCICLETA
     public String AgregarMotocicleta(String Marca, int Placa, double Cilindraje, String Color) {
+        if (Marca == null || Marca.trim().isEmpty() || Placa <= 0) return "Marca y placa positiva son obligatorias";
+        for (Object item : ListadoVehiculos) if (((ClsVehiculo) item).getPlaca() == Placa) return "Ya existe un vehículo con esa placa";
+
 
         String Resultado = "";
 
@@ -268,6 +274,9 @@ public class RegistroCarros {
 
     // METODOS CLASE AUTOBUS
     public String AgregarAutobus(String Marca, int Placa, int Capacidad, String Modelo) {
+        if (Marca == null || Marca.trim().isEmpty() || Placa <= 0) return "Marca y placa positiva son obligatorias";
+        for (Object item : ListadoVehiculos) if (((ClsVehiculo) item).getPlaca() == Placa) return "Ya existe un vehículo con esa placa";
+
 
         String Resultado = "";
 
@@ -355,6 +364,9 @@ public class RegistroCarros {
 
     // METODOS CLASE CAMION
     public String AgregarCamion(String Marca, int Placa, int CapacidadToneladas, int CantidadEjes) {
+        if (Marca == null || Marca.trim().isEmpty() || Placa <= 0) return "Marca y placa positiva son obligatorias";
+        for (Object item : ListadoVehiculos) if (((ClsVehiculo) item).getPlaca() == Placa) return "Ya existe un vehículo con esa placa";
+
 
         String Resultado = "";
 
@@ -442,13 +454,11 @@ public class RegistroCarros {
 
     // METODOS CLASE CITARITEVE
     public String AgregarCita(String Vehiculo, String Lugar, double Costo) {
-
-        String Resultado = "";
-
-        ListadoCitas.add(new CitaRiteve((ListadoCitas.size() + 1), Vehiculo, Lugar, Costo));
-        Resultado = "Cita RITEVE Agregada con Éxito";
-
-        return Resultado;
+        if (Vehiculo == null || Vehiculo.trim().isEmpty() || Lugar == null || Lugar.trim().isEmpty() || !Double.isFinite(Costo) || Costo < 0) return "Datos de cita inválidos";
+        int siguiente = 1;
+        for (Object item : ListadoCitas) siguiente = Math.max(siguiente, Math.addExact(((CitaRiteve) item).getIdCita(), 1));
+        ListadoCitas.add(new CitaRiteve(siguiente, Vehiculo.trim(), Lugar.trim(), Costo));
+        return "Cita RITEVE Agregada con Éxito";
     }
 
     public String MostrarCitas() {
@@ -521,67 +531,38 @@ public class RegistroCarros {
     }
 
     public String guardarCitas(File NombreArchivo) {
-
-        ObjectOutputStream Salida = null;
-
+        if (NombreArchivo == null) return "No se seleccionó archivo";
+        java.nio.file.Path temporal = null;
         try {
-            Salida = new ObjectOutputStream(new FileOutputStream(NombreArchivo));
-            // Si no se especifica se guarda en las carpetas de netbeans
-        } catch (IOException a) {
-            return "Error al crear el archivo";
-        }
-
-        try {
-            for (int i = 0; i < getListadoCitas().size(); i++) {
-                Salida.writeObject((CitaRiteve) getListadoCitas().get(i));
-                Salida.flush(); // Para q toda la info en el listado vaya directo al archivo y se guarde estructurado
+            java.nio.file.Path destino = NombreArchivo.toPath().toAbsolutePath();
+            temporal = java.nio.file.Files.createTempFile(destino.getParent(), ".citas-", ".tmp");
+            try (ObjectOutputStream salida = new ObjectOutputStream(java.nio.file.Files.newOutputStream(temporal))) {
+                for (Object cita : ListadoCitas) salida.writeObject((CitaRiteve) cita);
             }
-        } catch (IOException b) {
-            return "Error al escribir el archivo";
-        }
-
-        // Una vez almacenados los datos se procede a cerrar el archivo
-        try {
-            Salida.close();
-        } catch (IOException c) {
-            return "Error al cerrar el archivo";
-        }
-
-        return "Archivo Guardado Correctamente";
-
+            try { java.nio.file.Files.move(temporal, destino, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING); }
+            catch (java.nio.file.AtomicMoveNotSupportedException error) { java.nio.file.Files.move(temporal, destino, java.nio.file.StandardCopyOption.REPLACE_EXISTING); }
+            return "Archivo Guardado Correctamente";
+        } catch (IOException error) { return "Error al guardar el archivo"; }
+        finally { if (temporal != null) try { java.nio.file.Files.deleteIfExists(temporal); } catch (IOException ignored) { } }
     }
 
     public String AbrirCitas(File NombreArchivo) {
-
-        CitaRiteve Temp = null; // Almacena cada lectura
-        ObjectInputStream Entrada = null;
-
-        try {
-            Entrada = new ObjectInputStream(new FileInputStream(NombreArchivo));
-        } catch (IOException a) {
-            return "Error al abrir el archivo";
-        }
-
-        // Ciclo para guardar en el ArrayList los datos
-        do {
-            try {
-                Temp = (CitaRiteve) Entrada.readObject();
-                getListadoCitas().add(Temp);
-            } catch (EOFException b) {
-                Temp = null;
-            } catch (IOException v) {
-                return "Error al leer el archivo";
-            } catch (ClassNotFoundException d) {
-                return "Lectura de un archivo incorrecto";
+        if (NombreArchivo == null) return "No se seleccionó archivo";
+        ArrayList<CitaRiteve> recuperadas = new ArrayList<CitaRiteve>();
+        java.util.Set<Integer> ids = new java.util.HashSet<Integer>();
+        for (Object item : ListadoCitas) ids.add(((CitaRiteve) item).getIdCita());
+        try (ObjectInputStream entrada = new ObjectInputStream(new FileInputStream(NombreArchivo))) {
+            while (true) {
+                Object item;
+                try { item = entrada.readObject(); } catch (EOFException fin) { break; }
+                if (!(item instanceof CitaRiteve)) return "Lectura de un archivo incorrecto";
+                CitaRiteve cita = (CitaRiteve) item;
+                if (!ids.add(cita.getIdCita())) return "El archivo contiene citas ya existentes";
+                recuperadas.add(cita);
             }
-        } while (Temp != null);
-
-        try {
-            Entrada.close();
-        } catch (IOException e) {
-            return "Error al abrir archivo";
-        }
-
+        } catch (IOException error) { return "Error al leer el archivo"; }
+        catch (ClassNotFoundException error) { return "Lectura de un archivo incorrecto"; }
+        ListadoCitas.addAll(recuperadas);
         return "Archivo recuperado Correctamente";
     }
 
